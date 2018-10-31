@@ -39,6 +39,11 @@ class QueryBuilder:
   def __init__(self):
     self.query = None
 
+  def duplicate(self):
+    copy = QueryBuilder()
+    copy.query = json.loads(self.json())
+    return copy
+
   def newGenomeQuery(self):
     self.query = {
       'type': QueryType.GENOME,
@@ -67,102 +72,120 @@ class QueryBuilder:
     return self
 
   def filterID(self, id):
-    self.query['filters']['_id'] = id;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['_id'] = id;
+    return copy
 
   def filterType(self, type):
-    self.query['filters']['type'] = type;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['type'] = type;
+    return copy
   
   def filterSource(self, source):
-    self.query['filters']['source'] = source;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['source'] = source;
+    return copy
   
   def filterContig(self, contig):
     if (self.query['type'] != QueryType.GENOME):
       raise 'filter contig only available for GenomeNodes';
-    self.query['filters']['contig'] = contig;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['contig'] = contig;
+    return copy
   
   def filterLength(self, length):
     if (self.query.type != QueryType.GENOME):
       raise 'Length only available for GenomeNodes';
     
-    self.query['filters']['length'] = length;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['length'] = length;
+    return copy
   
   def filterName(self, name):
-    self.query['filters']['name'] = name;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['name'] = name;
+    return copy
   
   def filterPathway(self, pathways):
-    self.query.filters['info.kegg_pathways'] = pathways;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['info.kegg_pathways'] = pathways;
+    return copy
   
   def filterMaxPValue(self, pvalue):
-    self.query.filters['info.p-value'] = { '<': pvalue };
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['info.p-value'] = { '<': pvalue };
+    return copy
   
   def filterBiosample(self, biosample):
+    copy = self.duplicate()
     if type(biosample) == list :
-      self.query.filters['info.biosample'] = { '$in' : biosample };
+      copy.query['filters']['info.biosample'] = { '$in' : biosample };
     else:
-      self.query.filters['info.biosample'] = biosample;
-    return self
+      copy.query['filters']['info.biosample'] = biosample;
+    return copy
     
   def filterTargets(self, targets):
     if len(targets):
-      self.query.filters['info.targets'] = { '$all': targets };
-    return self
+      copy = self.duplicate()
+      copy.query['filters']['info.targets'] = { '$all': targets };
+    return copy
     
   def filterInfotypes(self, type):
-    self.query.filters['info.types'] = type;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['info.types'] = type;
+    return copy
   
   def filterAssay(self, assay):
-    self.query.filters['info.assay'] = assay;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['info.assay'] = assay;
+    return copy
   
   def filterOutType(self, outType):
-    self.query.filters['info.outtype'] = outType;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['info.outtype'] = outType;
+    return copy
   
   def filterPatientBarCode(self, outType):
-    self.query.filters['info.patient_barcodes'] = outType;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['info.patient_barcodes'] = outType;
+    return copy
   
   def filterStartBp(self, start):
     if self.query['type'] != QueryType.GENOME:
       raise 'filterStartBp is only available for an Genome Query.';
     
-    self.query['filters']['start'] = start;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['start'] = start;
+    return copy
   
   def filterEndBp(self, end):
     if self.query['type'] != QueryType.GENOME:
       raise 'filterEndBp is only available for an Genome Query.';
-    self.query['filters']['end'] = end;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['end'] = end;
+    return copy
   
   def filterAffectedGene(self, gene):
     previous = self.query['filters']['variant_affected_genes'] or [];
-    self.query['filters']['info.variant_affected_genes'] = gene;
-    return self
+    copy = self.duplicate()
+    copy.query['filters']['info.variant_affected_genes'] = gene;
+    return copy
   
   def filterVariantTag(self, tag):
+    copy = self.duplicate()
     if type(tag) == list:
-      self.query['filters']['info.variant_tags'] = { '$in' : tag };
+      copy.query['filters']['info.variant_tags'] = { '$in' : tag };
     else:
-      self.query['filters']['info.variant_tags'] = tag;
-    return self
+      copy.query['filters']['info.variant_tags'] = tag;
+    return copy
 
   def searchText(self, text):
     self.query['filters']['$text'] = text;
-    return self
+    return copy
 
   def setLimit(self, limit):
     self.query['limit'] = limit;
-    return self
+    return copy
 
   def get(self):
     return self.query
@@ -176,7 +199,61 @@ class QueryBuilder:
   def isGwas(self):
     return False
 
+  def addToEdge(self, edgeQuery):
+    if (self.query['type'] == QueryType.EDGE):
+      raise 'Edge can not be connected to another edge.';
+    copy = self.duplicate()
+    copy.query['toEdges'].append(edgeQuery.get());
+    return copy
 
+  def toNode(self, nodeQuery, reverse=False):
+    if (self.query['type'] != QueryType.EDGE):
+      raise 'toNode is only available for an Edge Query.';
+    copy = self.duplicate()
+    copy.query['toNode'] = nodeQuery.get();
+    copy.query['reverse'] = reverse;
+    return copy
+
+
+  def intersect(self, genomeQuery, windowSize=None):
+    if (self.query['type'] != QueryType.GENOME):
+      raise 'Arithmetic is only available for an Genome Query.'
+    ar = {
+      'operator': 'intersect',
+      'target_queries': [genomeQuery.get()],
+    }
+    if (windowSize != None):
+      ar['windowSize'] = int(windowSize)
+      ar['operator'] = 'window'
+    copy = self.duplicate()
+    copy.query['arithmetics'].append(ar);
+    return copy
+
+  def union(self, queries):
+    if type(queries) != list:
+      queries = [queries.get()]
+    else:
+      queries = [query.get() for query in queries]
+    ar = {
+      'operator': 'union',
+      'target_queries': queries,
+    }
+    copy = self.duplicate()
+    copy.query['arithmetics'].append(ar);
+    return copy
+
+  def diff(self, queries):
+    if type(queries) != list:
+      queries = [queries.get()]
+    else:
+      queries = [query.get() for query in queries]
+    ar = {
+      'operator': 'diff',
+      'target_queries': queries,
+    }
+    copy = self.duplicate()
+    copy.query['arithmetics'].append(ar);
+    return copy
 
 class ValisAPI:
     def __init__(self, ip='http://35.185.230.75', username=None, password=None):
@@ -206,7 +283,7 @@ class ValisAPI:
 
     def distinctValues(self, key, query):
         requestUrl = '%s/distinct_values/%s' % (self.apiUrl, key);
-        return requests.post(requestUrl, json=query.get()).content
+        return json.loads(requests.post(requestUrl, json=query.get()).content)
 
     def uploadFile(self, file_path):
         url = '%s/user_files' % self.apiUrl
