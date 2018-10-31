@@ -3,6 +3,12 @@ import requests
 
 from enum import EnumMeta
 
+class Genome(EnumMeta):
+  VARIANT = 'variant'
+  SNP = 'snp'
+  GENE = 'gene'
+  # TODO : Finish listing all types
+
 class FileType(EnumMeta):
   TXT_23ANDME = '23andme'
   VCF = 'vcf'
@@ -73,11 +79,10 @@ class QueryBuilder:
     return self
   
   def filterContig(self, contig):
-    if (self.query.type != QueryType.GENOME):
+    if (self.query['type'] != QueryType.GENOME):
       raise 'filter contig only available for GenomeNodes';
-    return self
-    
     self.query['filters']['contig'] = contig;
+    return self
   
   def filterLength(self, length):
     if (self.query.type != QueryType.GENOME):
@@ -174,7 +179,7 @@ class QueryBuilder:
 
 
 class ValisAPI:
-    def __init__(self, ip, username, password):
+    def __init__(self, ip='http://35.185.230.75', username=None, password=None):
         self.apiUrl = ip
         pass
 
@@ -233,14 +238,8 @@ class ValisAPI:
         if (len(options)):
             requestUrl = requestUrl + '?' + '&'.join(options)
 
-        return requests.post(requestUrl, json=query.get()).content
-
-
-valis = ValisAPI('http://35.185.230.75', None, None)
-q = valis.genomeQuery().filterType('gene')
-print(valis.getQueryResults(q, True, 0, 10))
-
-
+        result = json.loads(requests.post(requestUrl, json=query.get()).content)
+        return result['data'], result['reached_end']
 
 
 
