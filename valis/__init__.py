@@ -5,7 +5,7 @@ from enum import EnumMeta
 
 class Genome(EnumMeta):
   VARIANT = 'variant'
-  SNP = 'snp'
+  SNP = 'SNP'
   GENE = 'gene'
   # TODO : Finish listing all types
 
