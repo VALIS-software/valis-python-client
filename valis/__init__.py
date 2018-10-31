@@ -28,8 +28,8 @@ class Dataset(EnumMeta):
   ROADMAP = 'Roadmap Epigenomics';
   FASTA = 'RefSeq';
   EFO = 'EFO';
-  ENCODE_bigwig = 'ENCODEbigwig';
-  ExAC = 'ExAC';
+  ENCODE_BIGWIG = 'ENCODEbigwig';
+  EXAC = 'ExAC';
   TCGA = 'TCGA';
   ENSEMBL = 'ENSEMBL';
   GTEX = 'GTEx';
@@ -180,7 +180,8 @@ class QueryBuilder:
     return copy
 
   def searchText(self, text):
-    self.query['filters']['$text'] = text;
+    copy = self.duplicate()
+    copy.query['filters']['$text'] = text;
     return copy
 
   def setLimit(self, limit):
