@@ -2,7 +2,7 @@ from valis import ValisAPI, Genome
 
 client = ValisAPI()
 
-# Get chr1 (note that contig names are in string, not numerical, sorted order)
+# Get 2nd contig name (note that contig names are in string, not numerical, sorted order)
 chr10 = client.contigs()[1]['name']
 
 # Filter the genomic annotations to type 'gene' and contig 'chr10'
