@@ -1,37 +1,30 @@
-from valis import ValisAPI, Dataset, Genome
-
-client = ValisAPI()
+from valis import valis, Dataset
 
 
-# get the pathway names
-q = client.infoQuery().filterType('pathway')
-pathways = client.distinctValues('name', q)
+# the available pathway datasets
+availablePathwayDatasets = valis.pathways.datasets()
 
-# print the data for the first 3 pathways
-for pathway in pathways[:3]:
+# the pathway names in kegg
+pathwayNames = valis.pathways.names(availablePathwayDatasets[0])
 
-	# query to fetch genes in pathway
-	genes_in_pathway = (client.genomeQuery()
-		.filterType(Genome.GENE)
-		.filterPathway(pathway))
+# query representing genes in a pathway
+genesInPathway = valis.pathways.genes(pathwayNames[0])
 
-	# fetch all eQTL's that are known to modulate genes in this set
-	eQTLs = (client.edgeQuery()
-		.filterSource(Dataset.GTEX)
-		.filterMaxPValue(0.01))
+# fetch the list of genes in the pathway
+genesInPathway.fetch()
 
-	variants = (client.genomeQuery()
-		.filterType(Genome.SNP)
-		.filterSource(Dataset.DBSNP))
+# fetch biosamples in GTEx
+biosamples = valis.biosamples.names(datasets=[Dataset.GTEX])
 
-	eQTLs_near_pathway = variants.addToEdge(eQTLs.toNode(genes_in_pathway))
-	
-	# find which of these are within 100bp of roadmap epigenomics annotations in 'Lung': 
-	roadmap_annotations = (client.genomeQuery()
-		.filterSource(Dataset.ROADMAP)
-		.filterBiosample('Lung'))
+# fetch exac variants that regulate genes in this pathway
+eqtlsForGenesInPathway = valis.variants.eqtl(genes=genesInPathway, biosamples=biosamples[0], variantDatasets=[Dataset.EXAC])
 
-	snps_near_annotations = eQTLs_near_pathway.intersect(roadmap_annotations, windowSize=100)
 
-	# fetch the snps near annotations
-	print(client.getQueryResults(snps_near_annotations))
+# define some intervals
+customInterval = valis.region.createFromIntervals([('chr12', 111291402, 121291402), ('chr6', 30814428, 31814428)])
+bedInterval = valis.region.createFromBed(open('examples/example.bed', 'rb'))
+wholeInterval = customInterval.union(bedInterval)
+
+# intersect these against the eQTLs
+result = eqtlsForGenesInPathway.intersect(wholeInterval, windowSize=10000)
+print(result.fetch())

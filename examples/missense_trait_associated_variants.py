@@ -1,4 +1,4 @@
-from valis import ValisAPI, Dataset, Genome
+from valis import valis, Dataset
 
 client = ValisAPI()
 
@@ -16,6 +16,4 @@ gwasQuery = client.edgeQuery().filterSource(Dataset.GWAS_CATALOG)
 
 # Build graph query fetching variants that have a gwas relation to a trait :
 missenseGwasVariants = variantQuery.addToEdge(gwasQuery.toNode(traitQuery))
-
-print(client.getQueryResults(missenseGwasVariants))
 

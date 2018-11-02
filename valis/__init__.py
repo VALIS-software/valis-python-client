@@ -1,5 +1,7 @@
 import json
 import requests
+from uuid import uuid4
+import os
 
 from enum import EnumMeta
 
@@ -39,15 +41,59 @@ class Pathway:
   def __init__(self, api):
     self.api = api      
 
+  def datasets(self):
+    return [Dataset.KEGG]
+
   def names(self, datasets=[Dataset.KEGG]):
     """ Returns the list of all pathways available, optionally filtering by dataset"""
-    return [p['name'] for name in self.api.infoQuery().filterType('pathway').filterSource(datasets).fetch()]
+    return [p['name'] for p in self.api.infoQuery().filterType('pathway').filterSource(datasets).fetch()]
 
   def genes(self, pathway):
     """ Returns the list of genes in the specified pathway """
     return (self.api.genomeQuery()
       .filterType(Genome.GENE)
       .filterPathway(pathway))
+
+class Patient:
+  def __init__(self, api):
+    self.api = api
+
+  def datasets(self):
+    return [Dataset.TCGA]
+
+  def genders(self, datasets=[Dataset.TCGA]):
+    pass
+
+  def indications(self, datasets=[Dataset.TCGA]):
+    pass
+
+  def vitalStatuses(self, datasets=[Dataset.TCGA]):
+    pass
+
+  def ages(self, datasets=[Dataset.TCGA]):
+    pass
+
+  def ageOfOnsets(self, datasets=[Dataset.TCGA]):
+    pass
+
+  def query(self, genders=None, vitalStatus=None, indications=None, patientBarcodes=None, datasets=[Dataset.TCGA]):
+    return (self.api
+      .infoQuery()
+      .filterType('patient')
+      .filterSource(datasets)
+      .filterPatientGender(genders)
+      .filterVitalStatus(vitalStatus)
+      .filterPatientBarCode(patientBarcodes)
+      .filterPatientDisease(indications))
+
+  def variants(self, patientBarcodes=None, datasets=[Dataset.TCGA]):
+    return (self.api.genomeQuery()
+      .filterSource(datasets)
+      .filterPatientBarCode(patientBarcodes)
+    )
+
+  def variantsForPatient(self, patient):
+    return (self.variants(patientBarcodes=patient['info']['patient_barcode']))
 
 class Trait:
   def __init__(self, api):
@@ -110,29 +156,31 @@ class Variant:
       .filterSource(datasets)
       .filterVariantTag(variantTags))
 
+
 class GenomicRegion:
-  def __init__(self):
-    pass
+  def __init__(self, api):
+    self.api = api
 
-  def addInterval(self, contig, start, end):
-    pass
+  def createFromIntervals(self, intervals):
+    fname = './tmp-region-' + str(uuid4()) + str('.bed')
+    with open(fname, 'w') as f:
+      for interval in intervals:
+        f.write('\t'.join([interval[0], str(interval[1]-1), str(interval[2] - 1)]) + '\n')
+    ret = self.createFromBed(open(fname, 'rb'))
+    os.remove(fname)
+    return ret
 
-  def removeInterval(self, contig, start, end):
-    pass
+  def createFromBed(self, file):
+    name = 'tmp-region-' + str(uuid4()) + str('.bed')
+    self.api.uploadFile(file, name)
+    files = self.api.getUploadedFiles()
+    for file in files:
+      if file['fileName'] == name:
+        return self.api.genomeQuery().setUserFileID(file['fileID'])
+    raise 'Failed to contact server'
 
-  def getIntervals(self):
-    pass
-
-  def setIntervals(self, intervals):
-    pass
-  
-  def createFromBED(self, path):
-    pass
-  
-  def commit(self):
-    pass
-  
   def get(self):
+    # return query defining this genomic region
     pass
 
 class Gene:
@@ -230,11 +278,17 @@ class QueryBuilder:
 
   def setFilterValue(self, filterKey, value):
     if value is None:
-      return
+      return self
     if (type(value) == list):
       self.query['filters'][filterKey] = { '$in' : value };
     else:
       self.query['filters'][filterKey] = value;
+    return self
+
+  def setUserFileID(self, userFileID):
+    copy = self.duplicate()
+    copy.query['userFileID'] = userFileID
+    return copy
 
   def filterID(self, id):
     copy = self.duplicate()
@@ -255,7 +309,7 @@ class QueryBuilder:
     if (self.query['type'] != QueryType.GENOME):
       raise 'filter contig only available for GenomeNodes';
     copy = self.duplicate()
-    copy.query['filters']['contig'] = contig;
+    copy.setFilterValue('contig', contig)
     return copy
   
   def filterLength(self, length):
@@ -305,27 +359,32 @@ class QueryBuilder:
   
   def filterAssay(self, assay):
     copy = self.duplicate()
-    copy.query['filters']['info.assay'] = assay;
+    copy.setFilterValue('info.assay',assay);
     return copy
   
   def filterOutType(self, outType):
     copy = self.duplicate()
-    copy.query['filters']['info.outtype'] = outType;
+    copy.setFilterValue('info.outtype', outType);
     return copy
   
+  def filterVitalStatus(self, vitalStatus):
+    copy = self.duplicate()
+    copy.setFilterValue('info.vital_status', vitalStatus);
+    return copy
+
   def filterPatientBarCode(self, outType):
     copy = self.duplicate()
-    copy.query['filters']['info.patient_barcodes'] = outType;
+    copy.setFilterValue('info.patient_barcodes', outType);
     return copy
 
   def filterPatientGender(self, gender):
     copy = self.duplicate()
-    copy.query['filters']['info.gender'] = gender;
+    copy.setFilterValue('info.gender', gender);
     return copy
 
   def filterPatientDisease(self, disease_code):
     copy = self.duplicate()
-    copy.query['filters']['info.disease_code'] = disease_code;
+    copy.setFilterValue('info.disease_code', disease_code);
     return copy
   
   def filterStartBp(self, start):
@@ -434,6 +493,12 @@ class QueryBuilder:
   def fetch(self, full=False, startIdx=None, endIdx=None):
     result, has_more = self.api.getQueryResults(self.setLimit(1000000), full, startIdx, endIdx)
     return result
+
+  def release(self):
+    if 'userFileID' in self.query:
+      self.api.deleteFile(self.query['userFileID'])
+    else:
+      raise 'Cannot release query (not a user generated data file)'
   
   def distinctValues(self, key):
     return self.api.distinctValues(key, self)
@@ -452,6 +517,10 @@ class api:
         self.pathways = Pathway(self)
         self.biosamples = Biosample(self)
         self.genes = Gene(self)
+        self.region = GenomicRegion(self)
+    
+    def newGenomicRegion(self):
+        return GenomicRegion(self)
 
     def genomeQuery(self):
         return QueryBuilder(self).newGenomeQuery()
@@ -478,10 +547,25 @@ class api:
         requestUrl = '%s/distinct_values/%s' % (self.apiUrl, key);
         return json.loads(requests.post(requestUrl, json=query.get()).content)
 
-    def uploadFile(self, file_path):
+    def deleteFile(self, fileID):
+      url = '%s/user_files?fileID=%s' % (self.apiUrl, fileID)
+      return requests.delete(url)
+
+    def uploadFile(self, file, name=None):
         url = '%s/user_files' % self.apiUrl
-        files = {'file': open(file_path, 'rb'), 'fileType' : file_type}
-        return requests.post(url, files=files)
+        file_path = file.name
+        if '.bed' in file_path:
+          file_type = FileType.BED
+        elif '.vcf' in file_path:
+          file_type = FileType.VCF
+        else:
+          file_type = FileType.TXT_23ANDME
+
+        if name:
+          files = {'file': (name, file), 'fileType' : ('', file_type)}
+        else:
+          files = {'file': file, 'fileType' : ('', file_type)}
+        return requests.post(url, files=files).content
 
     def downloadQuery(self, query, output_path, sort=False):
         requestUrl = '%s/download_query' % self.apiUrl
@@ -509,3 +593,5 @@ class api:
 
         result = json.loads(requests.post(requestUrl, json=query.get()).content)
         return result['data'], result['reached_end']
+
+valis = api()
