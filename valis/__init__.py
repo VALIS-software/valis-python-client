@@ -24,7 +24,7 @@ class Dataset(EnumMeta):
   GWAS_CATALOG = 'GWAS Catalog';
   CLINVAR = 'ClinVar';
   DBSNP = 'dbSNP';
-  ENCODE_ANNOTATIONS = 'ENCODE';
+  ENCODE = 'ENCODE';
   ROADMAP = 'Roadmap Epigenomics';
   FASTA = 'RefSeq';
   EFO = 'EFO';
@@ -33,15 +33,147 @@ class Dataset(EnumMeta):
   TCGA = 'TCGA';
   ENSEMBL = 'ENSEMBL';
   GTEX = 'GTEx';
+  KEGG = 'KEGG';
 
+  def biosamples(self):
+    """ returns the biosamples in the dataset """
+    pass
+
+class Pathway:
+  def __init__(self, api):
+    self.api = api      
+
+  def names(self, datasets=[Dataset.KEGG]):
+    """ Returns the list of all pathways available, optionally filtering by dataset"""
+    return [p['name'] for name in self.api.infoQuery().filterType('pathway').filterSource(datasets).fetch()]
+
+  def genes(self, pathway):
+    """ Returns the list of genes in the specified pathway """
+    return (self.api.genomeQuery()
+      .filterType(Genome.GENE)
+      .filterPathway(pathway))
+
+class Trait:
+  def __init__(self, api):
+    self.api = api
+
+  def datasets(self):
+    """ Returns the list of all trait datasets available"""
+    return [Dataset.GWAS_CATALOG, Dataset.CLINVAR, Dataset.EFO]
+
+  def all(self, datasets=[Dataset.GWAS_CATALOG]):
+    return self.api.infoQuery().filterType('trait').filterSource(datasets)
+
+  def withName(self, names=[], datasets=[Dataset.GWAS_CATALOG]):
+    return self.all(datasets).filterName(names)
+
+  def search(self, searchText, datasets=[Dataset.GWAS_CATALOG]):
+    return self.all(datasets).searchText(searchText)
+
+class Variant:
+  def __init__(self, api):
+    self.api = api
+
+  def datasets(self):
+    """ Returns the list of all variant datasets available"""
+    return [Dataset.GWAS_CATALOG, Dataset.CLINVAR, Dataset.DBSNP, Dataset.TCGA, Dataset.GTEX]
+
+  def tags(self, datasets=[Dataset.EXAC]):
+    """ Returns the variant tags available, optionally filtered by datasets"""
+    return self.api.infoQuery().filterSource(datasets).distinctValues('info.variant_tags')
+
+  def gwasDatasets(self):
+    """ Returns the GWAS datasets that are available"""
+    return [Dataset.GWAS_CATALOG, Dataset.CLINVAR]
+
+  def eqtlDatasets(self):
+    """ Returns the eQTL datasets that are available"""
+    return [Dataset.GTEX]
+
+  def eqtl(self, maxPValue=0.01, biosamples=None, genes=None, eqtlDatasets=[Dataset.GTEX], variantDatasets=[Dataset.DBSNP, Dataset.EXAC, Dataset.CLINVAR]):
+    """ Returns the eQTLs contained within datasets, filtered by optional biosamples and optionally affecting genes within geneQuery"""
+
+    # fetch all eQTL's that are known to modulate genes in this set
+    eQTLs = (self.api.edgeQuery()
+      .filterSource(eqtlDatasets)
+      .filterBiosample(biosamples)
+      .filterMaxPValue(maxPValue))
+
+    variants = (self.api.genomeQuery()
+      .filterSource(variantDatasets))
+
+    return variants.addToEdge(eQTLs)
+
+    
+  def gwas(self, maxPValue=0.01, traitQuery=None, variantTags=None, gwasDatasets=[Dataset.GWAS_CATALOG], variantDatasets=[Dataset.EXAC, Dataset.CLINVAR, Dataset.DBSNP]):
+    variantQuery = self.all(variantTags, variantDatasets)
+    # GWAS relations are an edge between a variant and a trait
+    gwasQuery = self.api.edgeQuery().filterSource(gwasDatasets).filterMaxPValue(maxPValue)
+    return variantQuery.addToEdge(gwasQuery.toNode(traitQuery))
+
+  def all(self, variantTags=None, datasets=[Dataset.EXAC, Dataset.CLINVAR, Dataset.DBSNP]):
+    return(self.api.genomeQuery()
+      .filterSource(datasets)
+      .filterVariantTag(variantTags))
+
+class GenomicRegion:
+  def __init__(self):
+    pass
+
+  def addInterval(self, contig, start, end):
+    pass
+
+  def removeInterval(self, contig, start, end):
+    pass
+
+  def getIntervals(self):
+    pass
+
+  def setIntervals(self, intervals):
+    pass
+  
+  def createFromBED(self, path):
+    pass
+  
+  def commit(self):
+    pass
+  
+  def getQuery(self):
+    pass
+
+class Gene:
+  def __init__(self, api):
+    self.api = api
+
+  def datasets(self):
+    """ Returns the list of annotation datasets available e.g ENCODE, ENSEMBL, ROADMAP """
+    return [Dataset.ENSEMBL]
+  
+  def sets(self):
+    pass
+
+class Annotation:
+  def __init__(self, api):
+    self.api = api
+
+  def datasets(self):
+    """ Returns the list of annotation datasets available e.g ENCODE, ENSEMBL, ROADMAP """
+    return [Dataset.ENCODE, Dataset.ROADMAP]
+
+  def getAnnotations(self, annotationTypes=None, biosamples=None, targets=None, datasets=[Dataset.ENCODE]):
+    """ Returns a query for the  specified annotation types"""
+    pass
 
 class QueryBuilder:
-  def __init__(self):
+  def __init__(self, api):
     self.query = None
+    self.api = api
+    self.isEdgeOnly = False
 
   def duplicate(self):
-    copy = QueryBuilder()
+    copy = QueryBuilder(self.api)
     copy.query = json.loads(self.json())
+    copy.isEdgeOnly = self.isEdgeOnly
     return copy
 
   def newGenomeQuery(self):
@@ -71,19 +203,27 @@ class QueryBuilder:
     }
     return self
 
+  def setFilterValue(self, filterKey, value):
+    if value is None:
+      return
+    if (type(value) == list):
+      self.query['filters'][filterKey] = { '$in' : value };
+    else:
+      self.query['filters'][filterKey] = value;
+
   def filterID(self, id):
     copy = self.duplicate()
     copy.query['filters']['_id'] = id;
     return copy
 
-  def filterType(self, type):
+  def filterType(self, types):
     copy = self.duplicate()
-    copy.query['filters']['type'] = type;
+    copy.setFilterValue('type', types)
     return copy
   
   def filterSource(self, source):
     copy = self.duplicate()
-    copy.query['filters']['source'] = source;
+    copy.setFilterValue('source', source)
     return copy
   
   def filterContig(self, contig):
@@ -103,25 +243,22 @@ class QueryBuilder:
   
   def filterName(self, name):
     copy = self.duplicate()
-    copy.query['filters']['name'] = name;
+    copy.setFilterValue('name', name);
     return copy
   
   def filterPathway(self, pathways):
     copy = self.duplicate()
-    copy.query['filters']['info.kegg_pathways'] = pathways;
+    copy.setFilterValue('info.kegg_pathways', pathways);
     return copy
   
   def filterMaxPValue(self, pvalue):
     copy = self.duplicate()
-    copy.query['filters']['info.p-value'] = { '<': pvalue };
+    copy.setFilterValue('info.p-value', { '<': pvalue });
     return copy
   
   def filterBiosample(self, biosample):
     copy = self.duplicate()
-    if type(biosample) == list :
-      copy.query['filters']['info.biosample'] = { '$in' : biosample };
-    else:
-      copy.query['filters']['info.biosample'] = biosample;
+    copy.setFilterValue('info.biosample', biosample)
     return copy
     
   def filterTargets(self, targets):
@@ -149,6 +286,16 @@ class QueryBuilder:
     copy = self.duplicate()
     copy.query['filters']['info.patient_barcodes'] = outType;
     return copy
+
+  def filterPatientGender(self, gender):
+    copy = self.duplicate()
+    copy.query['filters']['info.gender'] = gender;
+    return copy
+
+  def filterPatientDisease(self, disease_code):
+    copy = self.duplicate()
+    copy.query['filters']['info.disease_code'] = disease_code;
+    return copy
   
   def filterStartBp(self, start):
     if self.query['type'] != QueryType.GENOME:
@@ -171,12 +318,9 @@ class QueryBuilder:
     copy.query['filters']['info.variant_affected_genes'] = gene;
     return copy
   
-  def filterVariantTag(self, tag):
+  def filterVariantTag(self, tags):
     copy = self.duplicate()
-    if type(tag) == list:
-      copy.query['filters']['info.variant_tags'] = { '$in' : tag };
-    else:
-      copy.query['filters']['info.variant_tags'] = tag;
+    copy.setFilterValue('info.variant_tags',  tags)
     return copy
 
   def searchText(self, text):
@@ -185,7 +329,8 @@ class QueryBuilder:
     return copy
 
   def setLimit(self, limit):
-    self.query['limit'] = limit;
+    copy = self.duplicate()
+    copy.query['limit'] = limit;
     return copy
 
   def get(self):
@@ -197,14 +342,13 @@ class QueryBuilder:
   def __str__(self):
     return json.dumps(self.query)
 
-  def isGwas(self):
-    return False
-
   def addToEdge(self, edgeQuery):
     if (self.query['type'] == QueryType.EDGE):
       raise 'Edge can not be connected to another edge.';
     copy = self.duplicate()
     copy.query['toEdges'].append(edgeQuery.get());
+    if (not 'toNode' in edgeQuery.get()):
+      copy.isEdgeOnly = True
     return copy
 
   def toNode(self, nodeQuery, reverse=False):
@@ -256,19 +400,35 @@ class QueryBuilder:
     copy.query['arithmetics'].append(ar);
     return copy
 
-class ValisAPI:
+  def fetch(self, full=False, startIdx=None, endIdx=None):
+    result, has_more = self.api.getQueryResults(self.setLimit(1000000), full, startIdx, endIdx)
+    return result
+  
+  def distinctValues(self, key):
+    return self.api.distinctValues(key, self)
+
+  def saveAsBed(self, outputPath, sortResults=False):
+    return self.api.downloadQuery(self.query, outputPath, sortResults)
+
+class api:
     def __init__(self, ip='http://35.185.230.75', username=None, password=None):
         self.apiUrl = ip
-        pass
+        self.username = username
+        self.password = password
+        self.variants = Variant(self)
+        self.traits = Trait(self)
+        self.annotations = Annotation(self)
+        self.pathways = Pathway(self)
+        # self.patients = Patient(self)
 
     def genomeQuery(self):
-        return QueryBuilder().newGenomeQuery()
+        return QueryBuilder(self).newGenomeQuery()
 
     def infoQuery(self):
-        return QueryBuilder().newInfoQuery()
+        return QueryBuilder(self).newInfoQuery()
 
     def edgeQuery(self):
-        return QueryBuilder().newEdgeQuery()
+        return QueryBuilder(self).newEdgeQuery()
 
     def contigs(self):
         return json.loads(requests.get('%s/contig_info' % self.apiUrl).content)
@@ -291,7 +451,6 @@ class ValisAPI:
         files = {'file': open(file_path, 'rb'), 'fileType' : file_type}
         return requests.post(url, files=files)
 
-
     def downloadQuery(self, query, output_path, sort=False):
         requestUrl = '%s/download_query' % self.apiUrl
         result = requests.post(requestUrl, json={ 'query': query.get(), 'sort': sort}).content
@@ -303,7 +462,7 @@ class ValisAPI:
         if (full):
             requestUrl = '%s/query/full' % self.apiUrl;
 
-        if (query.isGwas()):
+        if (query.isEdgeOnly):
             requestUrl = '%s/query/gwas' % self.apiUrl;
 
         options = [];
@@ -319,5 +478,6 @@ class ValisAPI:
         result = json.loads(requests.post(requestUrl, json=query.get()).content)
         return result['data'], result['reached_end']
 
-
+valis = api()
+print(valis.variants.eqtl())
 

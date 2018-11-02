@@ -6,7 +6,9 @@ client = ValisAPI()
 chr10 = client.contigs()[1]['name']
 
 # Filter the genomic annotations to type 'gene' and contig 'chr10'
-q = client.genomeQuery().filterType(Genome.GENE).filterContig(chr10)
+q = (client.genomeQuery()
+		.filterType(Genome.GENE)
+		.filterContig(chr10))
 
 
 print('Running query: %s' % q.json())
