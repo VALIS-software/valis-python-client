@@ -35,10 +35,6 @@ class Dataset(EnumMeta):
   GTEX = 'GTEx';
   KEGG = 'KEGG';
 
-  def biosamples(self):
-    """ returns the biosamples in the dataset """
-    pass
-
 class Pathway:
   def __init__(self, api):
     self.api = api      
@@ -61,14 +57,14 @@ class Trait:
     """ Returns the list of all trait datasets available"""
     return [Dataset.GWAS_CATALOG, Dataset.CLINVAR, Dataset.EFO]
 
-  def all(self, datasets=[Dataset.GWAS_CATALOG]):
+  def query(self, datasets=[Dataset.GWAS_CATALOG]):
     return self.api.infoQuery().filterType('trait').filterSource(datasets)
 
   def withName(self, names=[], datasets=[Dataset.GWAS_CATALOG]):
-    return self.all(datasets).filterName(names)
+    return self.query(datasets).filterName(names)
 
   def search(self, searchText, datasets=[Dataset.GWAS_CATALOG]):
-    return self.all(datasets).searchText(searchText)
+    return self.query(datasets).searchText(searchText)
 
 class Variant:
   def __init__(self, api):
@@ -90,7 +86,7 @@ class Variant:
     """ Returns the eQTL datasets that are available"""
     return [Dataset.GTEX]
 
-  def eqtl(self, maxPValue=0.01, biosamples=None, genes=None, eqtlDatasets=[Dataset.GTEX], variantDatasets=[Dataset.DBSNP, Dataset.EXAC, Dataset.CLINVAR]):
+  def eqtl(self, maxPValue=0.01, biosamples=None, genes=None, eqtlDatasets=[Dataset.GTEX], variantTags=None, variantDatasets=[Dataset.DBSNP, Dataset.EXAC, Dataset.CLINVAR]):
     """ Returns the eQTLs contained within datasets, filtered by optional biosamples and optionally affecting genes within geneQuery"""
 
     # fetch all eQTL's that are known to modulate genes in this set
@@ -99,19 +95,17 @@ class Variant:
       .filterBiosample(biosamples)
       .filterMaxPValue(maxPValue))
 
-    variants = (self.api.genomeQuery()
-      .filterSource(variantDatasets))
-
+    variants = self.query(datasets=variantDatasets, variantTags=variantTags)
     return variants.addToEdge(eQTLs)
 
     
   def gwas(self, maxPValue=0.01, traitQuery=None, variantTags=None, gwasDatasets=[Dataset.GWAS_CATALOG], variantDatasets=[Dataset.EXAC, Dataset.CLINVAR, Dataset.DBSNP]):
-    variantQuery = self.all(variantTags, variantDatasets)
+    variantQuery = self.query(variantTags, variantDatasets)
     # GWAS relations are an edge between a variant and a trait
     gwasQuery = self.api.edgeQuery().filterSource(gwasDatasets).filterMaxPValue(maxPValue)
     return variantQuery.addToEdge(gwasQuery.toNode(traitQuery))
 
-  def all(self, variantTags=None, datasets=[Dataset.EXAC, Dataset.CLINVAR, Dataset.DBSNP]):
+  def query(self, variantTags=None, datasets=[Dataset.EXAC, Dataset.CLINVAR, Dataset.DBSNP]):
     return(self.api.genomeQuery()
       .filterSource(datasets)
       .filterVariantTag(variantTags))
@@ -138,7 +132,7 @@ class GenomicRegion:
   def commit(self):
     pass
   
-  def getQuery(self):
+  def get(self):
     pass
 
 class Gene:
@@ -149,8 +143,11 @@ class Gene:
     """ Returns the list of annotation datasets available e.g ENCODE, ENSEMBL, ROADMAP """
     return [Dataset.ENSEMBL]
   
-  def sets(self):
-    pass
+  def query(self, names=None):
+    return (self.api.genomeQuery()
+      .filterSource(Dataset.ENSEMBL)
+      .filterType(Genome.GENE)
+      .filterName(names))
 
 class Annotation:
   def __init__(self, api):
@@ -160,9 +157,37 @@ class Annotation:
     """ Returns the list of annotation datasets available e.g ENCODE, ENSEMBL, ROADMAP """
     return [Dataset.ENCODE, Dataset.ROADMAP]
 
-  def getAnnotations(self, annotationTypes=None, biosamples=None, targets=None, datasets=[Dataset.ENCODE]):
+  def query(self, datasets=[Dataset.ENCODE], biosamples=None, annotationTypes=None, targets=None):
     """ Returns a query for the  specified annotation types"""
-    pass
+    return (self.api.genomeQuery()
+      .filterSource(datasets)
+      .filterBiosample(biosamples)
+      .filterTargets(targets)
+      .filterAnnotationType(annotationTypes))
+
+class Biosample:
+  def __init__(self, api):
+    self.api = api
+    self.annotations = Annotation(self.api)
+  
+  def names(self, datasets):
+    """ returns the biosamples in the dataset """
+    q = self.api.infoQuery().filterSource(datasets)
+    return self.api.distinctValues('info.biosample', q)
+
+  def types(self, datasets, biosamples=None):
+    q = (self.api.infoQuery()
+      .filterSource(datasets)
+      .filterBiosample(biosamples))
+    return self.api.distinctValues('info.types', q)
+  
+  def targets(self, datasets, biosamples=None, annotationType=None):
+    q = (self.api.infoQuery()
+      .filterSource(datasets)
+      .filterAnnotationType(annotationType)
+      .filterBiosample(biosamples))
+    return self.api.distinctValues('info.targets', q)
+
 
 class QueryBuilder:
   def __init__(self, api):
@@ -258,18 +283,24 @@ class QueryBuilder:
   
   def filterBiosample(self, biosample):
     copy = self.duplicate()
+    if biosample == None:
+      return copy
+    if (type(biosample) != list):
+      biosample = [biosample]
     copy.setFilterValue('info.biosample', biosample)
     return copy
     
   def filterTargets(self, targets):
+    copy = self.duplicate()
+    if targets == None:
+      return copy
     if len(targets):
-      copy = self.duplicate()
       copy.query['filters']['info.targets'] = { '$all': targets };
     return copy
     
-  def filterInfotypes(self, type):
+  def filterAnnotationType(self, annotationType):
     copy = self.duplicate()
-    copy.query['filters']['info.types'] = type;
+    copy.setFilterValue('info.types', annotationType);
     return copy
   
   def filterAssay(self, assay):
@@ -419,7 +450,8 @@ class api:
         self.traits = Trait(self)
         self.annotations = Annotation(self)
         self.pathways = Pathway(self)
-        # self.patients = Patient(self)
+        self.biosamples = Biosample(self)
+        self.genes = Gene(self)
 
     def genomeQuery(self):
         return QueryBuilder(self).newGenomeQuery()
@@ -477,7 +509,3 @@ class api:
 
         result = json.loads(requests.post(requestUrl, json=query.get()).content)
         return result['data'], result['reached_end']
-
-valis = api()
-print(valis.variants.eqtl())
-
