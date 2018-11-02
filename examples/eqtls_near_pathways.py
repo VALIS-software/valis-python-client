@@ -1,6 +1,5 @@
 from valis import valis, Dataset
 
-
 # the available pathway datasets
 availablePathwayDatasets = valis.pathways.datasets()
 
