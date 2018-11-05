@@ -25,7 +25,7 @@ gwasDbs = valis.variants.gwasDatasets()
 traitDbs = valis.traits.datasets()
 
 # fetch traits in GWAS Catalog matching query 'carcinoma'
-carcinomaTraits = valis.traits.search('carcinoma')
+carcinomaTraits = valis.traits.search('carcinoma', datasets=[Dataset.GWAS_CATALOG])
 
 # get list of variant tags in ExAC:
 variantTags = valis.variants.tags(datasets=[Dataset.EXAC])
