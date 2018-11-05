@@ -14,7 +14,7 @@ sudo python3 setup.py install
 ```
 
 ### Example Usage
-NOTE: for more examples please see the /examples folder
+NOTE: for more examples please see the /examples folder. Very basic docs are included in /docs/valis.html
 ```
 from valis import valis, Dataset
 
