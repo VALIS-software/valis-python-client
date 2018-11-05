@@ -1,12 +1,15 @@
 from valis import valis, Dataset
 
 # list gwas DB's
-gwasDbs = valis.variants.gwasDatasets()
+print(valis.variants.gwasDatasets())
 
-# fetch trait DB's
-traitDbs = valis.traits.datasets()
+# list trait DB's
+print(traitDbs = valis.traits.datasets())
 
-# fetch traits in GWAS Catalog matching query 'carcinoma'
+# list variant DB's
+print(valis.traits.datasets())
+
+# generate query for traits in GWAS Catalog containing text 'carcinoma'
 carcinomaTraits = valis.traits.search('carcinoma', [Dataset.GWAS_CATALOG])
 
 # print list of variant tags in ExAC:
