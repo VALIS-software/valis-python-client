@@ -9,8 +9,8 @@ traitDbs = valis.traits.datasets()
 # fetch traits in GWAS Catalog matching query 'carcinoma'
 carcinomaTraits = valis.traits.search('carcinoma', [Dataset.GWAS_CATALOG])
 
-# get list of variant tags in ExAC:
-variantTags = valis.variants.tags(datasets=[Dataset.EXAC])
+# print list of variant tags in ExAC:
+print(valis.variants.tags(datasets=[Dataset.EXAC]))
 
 # generate variant query for missense or loss of function variants
 missenseVariants = valis.variants.query(datasets=[Dataset.EXAC], variantTags=['missense_variant', 'loss_of_function'])
