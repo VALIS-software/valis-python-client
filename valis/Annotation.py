@@ -6,7 +6,7 @@ class Annotation:
 
   def datasets(self):
     """ Returns the list of annotation datasets available e.g ENCODE, ENSEMBL, ROADMAP """
-    return [Dataset.ENCODE, Dataset.ROADMAP]
+    return [Dataset.ENCODE, Dataset.ROADMAP, Dataset.IMMUNEATLAS]
 
   def query(self, datasets=[Dataset.ENCODE], biosamples=None, annotationTypes=None, targets=None):
     """ Returns a query for the  specified annotation types"""
@@ -14,4 +14,4 @@ class Annotation:
       .filterSource(datasets)
       .filterBiosample(biosamples)
       .filterTargets(targets)
-      .filterAnnotationType(annotationTypes))
+      .filterType(annotationTypes))

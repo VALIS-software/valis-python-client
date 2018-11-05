@@ -33,8 +33,7 @@ class Variant:
     return variants.addToEdge(eQTLs)
 
     
-  def gwas(self, maxPValue=0.01, traitQuery=None, variantTags=None, gwasDatasets=[Dataset.GWAS_CATALOG], variantDatasets=[Dataset.EXAC, Dataset.CLINVAR, Dataset.DBSNP]):
-    variantQuery = self.query(variantTags, variantDatasets)
+  def gwas(self, maxPValue=0.01, traitQuery=None, variantQuery=None, gwasDatasets=[Dataset.GWAS_CATALOG]):
     # GWAS relations are an edge between a variant and a trait
     gwasQuery = self.api.edgeQuery().filterSource(gwasDatasets).filterMaxPValue(maxPValue)
     return variantQuery.addToEdge(gwasQuery.toNode(traitQuery))

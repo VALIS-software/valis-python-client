@@ -21,6 +21,7 @@ class api:
         self.password = password
         self.variants = Variant(self)
         self.traits = Trait(self)
+        self.patients = Patient(self)
         self.annotations = Annotation(self)
         self.pathways = Pathway(self)
         self.biosamples = Biosample(self)
@@ -100,4 +101,5 @@ class api:
             requestUrl = requestUrl + '?' + '&'.join(options)
 
         result = json.loads(requests.post(requestUrl, json=query.get()).content)
+
         return result['data'], result['reached_end']

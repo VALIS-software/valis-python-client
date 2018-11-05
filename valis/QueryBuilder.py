@@ -43,6 +43,8 @@ class QueryBuilder:
   def setFilterValue(self, filterKey, value):
     if value is None:
       return self
+    if len(value) == 1:
+      value = value[0]
     if (type(value) == list):
       self.query['filters'][filterKey] = { '$in' : value };
     else:
@@ -96,7 +98,7 @@ class QueryBuilder:
   
   def filterMaxPValue(self, pvalue):
     copy = self.duplicate()
-    copy.setFilterValue('info.p-value', { '<': pvalue });
+    copy.query['filters']['info.p-value'] = { '<': pvalue };
     return copy
   
   def filterBiosample(self, biosample):
@@ -164,6 +166,13 @@ class QueryBuilder:
       raise 'filterEndBp is only available for an Genome Query.';
     copy = self.duplicate()
     copy.query['filters']['end'] = end;
+    return copy
+
+  def filterRegion(self, contig, start, end):
+    copy = self.duplicate()
+    copy.filterContig(contig)
+    copy.query['filters']['start'] = { '>' : start }
+    copy.query['filters']['end'] = { '<' : end }
     return copy
   
   def filterAffectedGene(self, gene):
