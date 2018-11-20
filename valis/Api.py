@@ -82,6 +82,12 @@ class api:
         with open(output_path, "wb") as f:
             f.write(result)
 
+    def fetchBAMData(self, fileQuery, intervalQuery):
+        pass
+
+    def fetchBigwigData(self, fileQuery, intervalQuery):
+        pass
+
     def getQueryResults(self, query, full=False, startIdx=None, endIdx=None):
         requestUrl = '%s/query/basic' % self.apiUrl
         if (full):
