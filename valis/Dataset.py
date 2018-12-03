@@ -15,6 +15,5 @@ class Dataset(EnumMeta):
   GTEX = 'GTEx';
   KEGG = 'KEGG';
   IMMUNEATLAS = 'ImmuneAtlas';
-  
 
 

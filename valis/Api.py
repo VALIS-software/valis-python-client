@@ -54,7 +54,12 @@ class api:
 
     def distinctValues(self, key, query):
         requestUrl = '%s/distinct_values/%s' % (self.apiUrl, key);
-        return json.loads(requests.post(requestUrl, json=query.get()).content)
+        result = requests.post(requestUrl, json=query.get()).content
+        try:
+            return json.loads(result)
+        except:
+            print('Request Failed')
+            print(result)
 
     def deleteFile(self, fileID):
       url = '%s/user_files?fileID=%s' % (self.apiUrl, fileID)

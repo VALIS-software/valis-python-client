@@ -35,6 +35,8 @@ class Variant:
     
   def gwas(self, maxPValue=0.01, traitQuery=None, variantQuery=None, gwasDatasets=[Dataset.GWAS_CATALOG]):
     # GWAS relations are an edge between a variant and a trait
+    if not variantQuery:
+      variantQuery = self.query(datasets=[Dataset.DBSNP])
     gwasQuery = self.api.edgeQuery().filterSource(gwasDatasets).filterMaxPValue(maxPValue)
     return variantQuery.addToEdge(gwasQuery.toNode(traitQuery))
 

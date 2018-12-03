@@ -14,6 +14,6 @@ setup(
     packages=find_packages(),
     url='https://github.com/VALIS-software/valis-python-client',
     install_requires=[
-        'requests'
+        'requests',
     ]
 )

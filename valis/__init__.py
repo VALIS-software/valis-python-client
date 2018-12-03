@@ -11,4 +11,10 @@ from .Annotation import *
 from .Biosample import *
 from .Api import api
 
+def ALL(d):
+  return ['AND'] + d
+
+def ANY(d):
+  return ['OR'] + d
+
 valis = api()

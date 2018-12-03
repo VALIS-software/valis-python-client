@@ -1,4 +1,4 @@
-from valis import valis, Dataset
+from valis import valis, Dataset, ALL
 
 # write a query for traits
 raTraits = valis.traits.search('rheumatoid arthritis', [Dataset.GWAS_CATALOG])
@@ -15,7 +15,7 @@ ucSNPs = valis.variants.gwas(maxPValue=0.01, variantQuery=dbsnp, traitQuery=ucTr
 both = raSNPs.intersect(ucSNPs)
 
 # fetch the immune atlas annotations
-immune = valis.annotations.query(datasets=Dataset.IMMUNEATLAS, biosamples='1002-Th1_precursors-U')
+immune = valis.annotations.query(datasets=[Dataset.IMMUNEATLAS], biosamples='1002-Th1_precursors-U')
 
 # to fetch all metadata set full=True
 

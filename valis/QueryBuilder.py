@@ -46,7 +46,12 @@ class QueryBuilder:
     if len(value) == 1:
       value = value[0]
     if (type(value) == list):
-      self.query['filters'][filterKey] = { '$in' : value };
+      if value[0] == 'AND':
+        self.query['filters'][filterKey] = { '$all' : value[1:] };
+      elif value[0] == 'OR':
+        self.query['filters'][filterKey] = { '$in' : value[1:] };
+      else:
+        self.query['filters'][filterKey] = { '$in' : value };
     else:
       self.query['filters'][filterKey] = value;
     return self
@@ -263,8 +268,10 @@ class QueryBuilder:
     copy.query['arithmetics'].append(ar);
     return copy
 
-  def fetch(self, full=False, startIdx=None, endIdx=None):
-    result, has_more = self.api.getQueryResults(self.setLimit(1000000), full, startIdx, endIdx)
+  def fetch(self, full=False, startIdx=None, endIdx=None, limit=None):
+    if not limit:
+      limit = 1000000
+    result, has_more = self.api.getQueryResults(self.setLimit(limit), full, startIdx, endIdx)
     return result
 
   def release(self):
