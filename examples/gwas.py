@@ -19,7 +19,7 @@ print(valis.variants.tags(datasets=[Dataset.EXAC]))
 missenseVariants = valis.variants.query(datasets=[Dataset.EXAC], variantTags=['missense_variant', 'loss_of_function'])
 
 # search gwas data for missense variants mapping to carcinomas
-gwasVariants = valis.variants.gwas(maxPValue=0.01, variantQuery=missenseVariants, traitQuery=carcinomaTraits, gwasDatasets=[Dataset.GWAS_CATALOG])
+gwasVariants = valis.variants.gwas(maxPValue=0.01, variantQuery=missenseVariants, traitQuery=carcinomaTraits, datasets=[Dataset.GWAS_CATALOG])
 
 print('query %s' % gwasVariants.json())
 print(gwasVariants.fetch())

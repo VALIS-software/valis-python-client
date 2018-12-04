@@ -20,10 +20,8 @@ class Variant:
     """ Returns the eQTL datasets that are available"""
     return [Dataset.GTEX]
 
-  def eqtl(self, maxPValue=0.01, biosamples=None, genes=None, eqtlDatasets=[Dataset.GTEX], variantTags=None, variantDatasets=[Dataset.DBSNP, Dataset.EXAC, Dataset.CLINVAR]):
-    """ Returns the eQTLs contained within datasets, filtered by optional biosamples and optionally affecting genes within geneQuery"""
-
-    # fetch all eQTL's that are known to modulate genes in this set
+  def eqtl(self, maxPValue=0.01, biosamples=None, eqtlDatasets=[Dataset.GTEX], variantTags=None, variantDatasets=[Dataset.DBSNP, Dataset.EXAC, Dataset.CLINVAR]):
+    """ Returns the eQTLs contained within datasets, filtered by optional biosamples """
     eQTLs = (self.api.edgeQuery()
       .filterSource(eqtlDatasets)
       .filterBiosample(biosamples)
@@ -33,14 +31,24 @@ class Variant:
     return variants.addToEdge(eQTLs)
 
     
-  def gwas(self, maxPValue=0.01, traitQuery=None, variantQuery=None, gwasDatasets=[Dataset.GWAS_CATALOG]):
+  def gwas(self, maxPValue=0.01, traitQuery=None, variantQuery=None, datasets=[Dataset.GWAS_CATALOG]):
     # GWAS relations are an edge between a variant and a trait
     if not variantQuery:
       variantQuery = self.query(datasets=[Dataset.DBSNP])
-    gwasQuery = self.api.edgeQuery().filterSource(gwasDatasets).filterMaxPValue(maxPValue)
+    if not traitQuery:
+      # search for any trait
+      traitQuery = self.query(datasets=[Dataset.EFO])
+    gwasQuery = self.api.edgeQuery().filterSource(datasets).filterMaxPValue(maxPValue)
     return variantQuery.addToEdge(gwasQuery.toNode(traitQuery))
 
-  def query(self, variantTags=None, datasets=[Dataset.EXAC, Dataset.CLINVAR, Dataset.DBSNP]):
-    return(self.api.genomeQuery()
-      .filterSource(datasets)
-      .filterVariantTag(variantTags))
+  def query(self, variantTags=None, datasets=[Dataset.EXAC, Dataset.CLINVAR, Dataset.DBSNP], userfile=None):
+    if userfile:
+      if type(userfile) == list:
+        print('cannot query multiple user files, use union')
+      return(self.api.genomeQuery()
+        .setUserFileID(userfile)
+        .filterVariantTag(variantTags))
+    else:
+      return(self.api.genomeQuery()
+        .filterSource(datasets)
+        .filterVariantTag(variantTags))

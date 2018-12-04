@@ -44,7 +44,13 @@ class api:
         return json.loads(requests.get('%s/contig_info' % self.apiUrl).content)
 
     def getUploadedFiles(self):
-        return json.loads(requests.get('%s/user_files' % self.apiUrl).content)
+        files = json.loads(requests.get('%s/user_files' % self.apiUrl).content)
+        final_files = []
+        for file in files:
+            if not 'tmp-region' in file['fileName']:
+                final_files.append(file)
+        return final_files
+
 
     def getDetails(dataID, userFileID=None):
         requestUrl = '%s/details/%s' % (self.apiUrl, dataID);
