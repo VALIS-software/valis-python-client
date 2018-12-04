@@ -22,6 +22,9 @@ for file in myFiles:
 print(cnrFiles)
 
 # fetch the variants for the first file
+# NOTE: you can only query one userfile at a time.
+# You can combine them by using the union operator, or manually
+# this a restriction that we're trying to fix.
 variants = valis.variants.query(userfile=cnrFiles[0]['fileID'])
 
 
