@@ -78,14 +78,14 @@ class QueryBuilder:
   
   def filterContig(self, contig):
     if (self.query['type'] != QueryType.GENOME):
-      raise 'filter contig only available for GenomeNodes';
+      raise Exception('filter contig only available for GenomeNodes')
     copy = self.duplicate()
     copy.setFilterValue('contig', contig)
     return copy
   
   def filterLength(self, length):
     if (self.query.type != QueryType.GENOME):
-      raise 'Length only available for GenomeNodes';
+      raise Exception('Length only available for GenomeNodes')
     
     copy = self.duplicate()
     copy.query['filters']['length'] = length;
@@ -160,7 +160,7 @@ class QueryBuilder:
   
   def filterStartBp(self, start):
     if self.query['type'] != QueryType.GENOME:
-      raise 'filterStartBp is only available for an Genome Query.';
+      raise Exception('filterStartBp is only available for an Genome Query.')
     
     copy = self.duplicate()
     copy.query['filters']['start'] = start;
@@ -168,7 +168,7 @@ class QueryBuilder:
   
   def filterEndBp(self, end):
     if self.query['type'] != QueryType.GENOME:
-      raise 'filterEndBp is only available for an Genome Query.';
+      raise Exception('filterEndBp is only available for an Genome Query.')
     copy = self.duplicate()
     copy.query['filters']['end'] = end;
     return copy
@@ -212,7 +212,7 @@ class QueryBuilder:
 
   def addToEdge(self, edgeQuery):
     if (self.query['type'] == QueryType.EDGE):
-      raise 'Edge can not be connected to another edge.';
+      raise Exception('Edge can not be connected to another edge.')
     copy = self.duplicate()
     copy.query['toEdges'].append(edgeQuery.get());
     if (not 'toNode' in edgeQuery.get()):
@@ -221,7 +221,7 @@ class QueryBuilder:
 
   def toNode(self, nodeQuery, reverse=False):
     if (self.query['type'] != QueryType.EDGE):
-      raise 'toNode is only available for an Edge Query.';
+      raise Exception('toNode is only available for an Edge Query.')
     copy = self.duplicate()
     copy.query['toNode'] = nodeQuery.get();
     copy.query['reverse'] = reverse;
@@ -230,7 +230,7 @@ class QueryBuilder:
 
   def intersect(self, genomeQuery, windowSize=None):
     if (self.query['type'] != QueryType.GENOME):
-      raise 'Arithmetic is only available for an Genome Query.'
+      raise Exception('Arithmetic is only available for an Genome Query.')
     ar = {
       'operator': 'intersect',
       'target_queries': [genomeQuery.get()],
@@ -278,7 +278,7 @@ class QueryBuilder:
     if 'userFileID' in self.query:
       self.api.deleteFile(self.query['userFileID'])
     else:
-      raise 'Cannot release query (not a user generated data file)'
+      raise Exception('Cannot release query (not a user generated data file)')
   
   def distinctValues(self, key):
     return self.api.distinctValues(key, self)

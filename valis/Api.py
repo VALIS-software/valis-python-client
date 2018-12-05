@@ -1,4 +1,5 @@
 import requests
+from requests.auth import HTTPBasicAuth
 import json
 from .QueryBuilder import *
 from .GenomeType import *
@@ -27,7 +28,31 @@ class api:
         self.biosamples = Biosample(self)
         self.genes = Gene(self)
         self.region = GenomicRegion(self)
-    
+
+    def check_auth(self):
+        if not self.username or not self.password:
+            print('You need to login!')
+            self.username=input('Enter Username [dev]: ') or 'dev'
+            self.password=input('Enter Password: ')
+            if not self.username or not self.password:
+                raise Exception('Not Logged In')
+
+    def send_get(self, requestUrl):
+        self.check_auth()
+        return requests.get(requestUrl, auth=HTTPBasicAuth(self.username, self.password))
+
+    def send_post(self, requestUrl, json):
+        self.check_auth()
+        return requests.post(requestUrl, json=json, auth=HTTPBasicAuth(self.username, self.password))
+
+    def send_delete(self, requestUrl):
+        self.check_auth()
+        return requests.delete(requestUrl, auth=HTTPBasicAuth(self.username, self.password))
+
+    def login(self, username, password):
+        self.username = username
+        self.password = password
+
     def newGenomicRegion(self):
         return GenomicRegion(self)
 
@@ -41,10 +66,10 @@ class api:
         return QueryBuilder(self).newEdgeQuery()
 
     def contigs(self):
-        return json.loads(requests.get('%s/contig_info' % self.apiUrl).content)
+        return json.loads(self.send_get('%s/contig_info' % self.apiUrl).content)
 
     def getUploadedFiles(self):
-        files = json.loads(requests.get('%s/user_files' % self.apiUrl).content)
+        files = json.loads(self.send_get('%s/user_files' % self.apiUrl).content)
         final_files = []
         for file in files:
             if not 'tmp-region' in file['fileName']:
@@ -56,11 +81,11 @@ class api:
         requestUrl = '%s/details/%s' % (self.apiUrl, dataID);
         if (userFileID):
             requestUrl = requestUrl + "?userFileID=" + userFileID;
-        return json.loads(requests.get(requestUrl).content)
+        return json.loads(self.send_get(requestUrl).content)
 
     def distinctValues(self, key, query):
         requestUrl = '%s/distinct_values/%s' % (self.apiUrl, key);
-        result = requests.post(requestUrl, json=query.get()).content
+        result = self.send_post(requestUrl, json=query.get()).content
         try:
             return json.loads(result)
         except:
@@ -69,7 +94,7 @@ class api:
 
     def deleteFile(self, fileID):
       url = '%s/user_files?fileID=%s' % (self.apiUrl, fileID)
-      return requests.delete(url)
+      return self.send_delete(url)
 
     def uploadFile(self, file, name=None):
         url = '%s/user_files' % self.apiUrl
@@ -85,11 +110,11 @@ class api:
           files = {'file': (name, file), 'fileType' : ('', file_type)}
         else:
           files = {'file': file, 'fileType' : ('', file_type)}
-        return requests.post(url, files=files).content
+        return self.send_post(url, files=files).content
 
     def downloadQuery(self, query, output_path, sort=False):
         requestUrl = '%s/download_query' % self.apiUrl
-        result = requests.post(requestUrl, json={ 'query': query.get(), 'sort': sort}).content
+        result = self.send_post(requestUrl, json={ 'query': query.get(), 'sort': sort}).content
         with open(output_path, "wb") as f:
             f.write(result)
 
@@ -117,6 +142,6 @@ class api:
         if (len(options)):
             requestUrl = requestUrl + '?' + '&'.join(options)
 
-        result = json.loads(requests.post(requestUrl, json=query.get()).content)
+        result = json.loads(self.send_post(requestUrl, json=query.get()).content)
 
         return result['data'], result['reached_end']

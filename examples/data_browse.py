@@ -1,4 +1,7 @@
 from valis import valis, Dataset
+from auth import VALIS_AUTH_USER, VALIS_AUTH_KEY
+
+valis.login(VALIS_AUTH_USER, VALIS_AUTH_KEY)
 
 print(valis.variants.datasets())
 print(valis.variants.eqtlDatasets())

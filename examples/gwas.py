@@ -1,10 +1,14 @@
 from valis import valis, Dataset
+from auth import VALIS_AUTH_USER, VALIS_AUTH_KEY
+
+valis.login(VALIS_AUTH_USER, VALIS_AUTH_KEY)
+
 
 # list gwas DB's
 print(valis.variants.gwasDatasets())
 
 # list trait DB's
-print(traitDbs = valis.traits.datasets())
+print(valis.traits.datasets())
 
 # list variant DB's
 print(valis.traits.datasets())

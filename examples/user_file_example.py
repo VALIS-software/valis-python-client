@@ -1,4 +1,8 @@
 from valis import valis, Dataset
+from auth import VALIS_AUTH_USER, VALIS_AUTH_KEY
+
+valis.login(VALIS_AUTH_USER, VALIS_AUTH_KEY)
+
 
 # list all of the user files
 myFiles = valis.getUploadedFiles()
