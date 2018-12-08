@@ -8,7 +8,7 @@ from .QueryType import *
 from .Dataset import *
 from .Patient import *
 from .Trait import *
-from .GenomicRegion import * 
+from .GenomicRegion import *
 from .Gene import *
 from .Annotation import *
 from .Biosample import *
@@ -16,10 +16,8 @@ from .Variant import *
 from .Pathway import *
 
 class api:
-    def __init__(self, ip='http://35.185.230.75', username=None, password=None):
+    def __init__(self, ip='http://35.185.230.75'):
         self.apiUrl = ip
-        self.username = username
-        self.password = password
         self.variants = Variant(self)
         self.traits = Trait(self)
         self.patients = Patient(self)
@@ -28,30 +26,47 @@ class api:
         self.biosamples = Biosample(self)
         self.genes = Gene(self)
         self.region = GenomicRegion(self)
+        self._access_token = None
 
     def check_auth(self):
-        if not self.username or not self.password:
+        if not self._access_token:
             print('You need to login!')
-            self.username=input('Enter Username [dev]: ') or 'dev'
-            self.password=input('Enter Password: ')
-            if not self.username or not self.password:
-                raise Exception('Not Logged In')
+            self.login()
 
     def send_get(self, requestUrl):
         self.check_auth()
-        return requests.get(requestUrl, auth=HTTPBasicAuth(self.username, self.password))
+        return requests.get(requestUrl, headers=self.get_auth_header())
 
     def send_post(self, requestUrl, json):
         self.check_auth()
-        return requests.post(requestUrl, json=json, auth=HTTPBasicAuth(self.username, self.password))
+        return requests.post(requestUrl, json=json, headers=self.get_auth_header())
 
     def send_delete(self, requestUrl):
         self.check_auth()
-        return requests.delete(requestUrl, auth=HTTPBasicAuth(self.username, self.password))
+        return requests.delete(requestUrl, headers=self.get_auth_header())
 
-    def login(self, username, password):
-        self.username = username
-        self.password = password
+    def login(self, username=None, password=None):
+        if username is None:
+            username = input('Enter valis.bio email address: ')
+        if password is None:
+            password = input('Enter valis.bio password')
+        payload = {
+            "grant_type":"password",
+            "username": username,
+            "password": password,
+            "audience": "https://api.valis.bio/",
+            "scope": "openid",
+            "client_id": "nl6uP1twFeeahGRnvkToaz6yz6krYPuZ",
+            "client_secret": "GFuhL-N5tLwRWCj3MBJR-5t-OO5f6Zt2_BS_7QK6mTGWzfp6yittLn2DYniFNW2w",
+        }
+        try:
+            response = requests.post('https://valis-dev.auth0.com/oauth/token', json=payload, headers={'content-type': 'application/json'})
+            self._access_token = response.json()['access_token']
+        except Exception as e:
+            print("Auth Error:", e)
+
+    def get_auth_header(self):
+        return { 'Authorization': 'Bearer ' + self._access_token }
 
     def newGenomicRegion(self):
         return GenomicRegion(self)
@@ -77,14 +92,14 @@ class api:
         return final_files
 
 
-    def getDetails(dataID, userFileID=None):
-        requestUrl = '%s/details/%s' % (self.apiUrl, dataID);
+    def getDetails(self, dataID, userFileID=None):
+        requestUrl = '%s/details/%s' % (self.apiUrl, dataID)
         if (userFileID):
-            requestUrl = requestUrl + "?userFileID=" + userFileID;
+            requestUrl = requestUrl + "?userFileID=" + userFileID
         return json.loads(self.send_get(requestUrl).content)
 
     def distinctValues(self, key, query):
-        requestUrl = '%s/distinct_values/%s' % (self.apiUrl, key);
+        requestUrl = '%s/distinct_values/%s' % (self.apiUrl, key)
         result = self.send_post(requestUrl, json=query.get()).content
         try:
             return json.loads(result)
@@ -110,7 +125,7 @@ class api:
           files = {'file': (name, file), 'fileType' : ('', file_type)}
         else:
           files = {'file': file, 'fileType' : ('', file_type)}
-        return self.send_post(url, files=files).content
+        return self.send_post(url, files).content
 
     def downloadQuery(self, query, output_path, sort=False):
         requestUrl = '%s/download_query' % self.apiUrl
@@ -127,17 +142,17 @@ class api:
     def getQueryResults(self, query, full=False, startIdx=None, endIdx=None):
         requestUrl = '%s/query/basic' % self.apiUrl
         if (full):
-            requestUrl = '%s/query/full' % self.apiUrl;
+            requestUrl = '%s/query/full' % self.apiUrl
 
         if (query.isEdgeOnly):
-            requestUrl = '%s/query/gwas' % self.apiUrl;
+            requestUrl = '%s/query/gwas' % self.apiUrl
 
-        options = [];
+        options = []
         if (startIdx != None):
-            options.append('result_start=%d' % startIdx);
+            options.append('result_start=%d' % startIdx)
 
         if (endIdx != None):
-            options.append('result_end=%d' % endIdx);
+            options.append('result_end=%d' % endIdx)
 
         if (len(options)):
             requestUrl = requestUrl + '?' + '&'.join(options)
