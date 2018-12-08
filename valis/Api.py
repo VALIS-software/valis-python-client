@@ -1,6 +1,7 @@
 import requests
 from requests.auth import HTTPBasicAuth
 import json
+import getpass
 from .QueryBuilder import *
 from .GenomeType import *
 from .FileType import *
@@ -29,7 +30,7 @@ class api:
         self._access_token = None
 
     def check_auth(self):
-        if not self._access_token:
+        if self._access_token is None:
             print('You need to login!')
             self.login()
 
@@ -47,9 +48,9 @@ class api:
 
     def login(self, username=None, password=None):
         if username is None:
-            username = input('Enter valis.bio email address: ')
+            username = input('Enter valis.bio login email address: ')
         if password is None:
-            password = input('Enter valis.bio password')
+            password = getpass.getpass(prompt="Enter valis.bio password: ")
         payload = {
             "grant_type":"password",
             "username": username,
@@ -59,11 +60,15 @@ class api:
             "client_id": "nl6uP1twFeeahGRnvkToaz6yz6krYPuZ",
             "client_secret": "GFuhL-N5tLwRWCj3MBJR-5t-OO5f6Zt2_BS_7QK6mTGWzfp6yittLn2DYniFNW2w",
         }
+        response = requests.post('https://valis-dev.auth0.com/oauth/token', json=payload, headers={'content-type': 'application/json'})
         try:
-            response = requests.post('https://valis-dev.auth0.com/oauth/token', json=payload, headers={'content-type': 'application/json'})
-            self._access_token = response.json()['access_token']
+            rdata = response.json()
+            if 'access_token' in rdata:
+                self._access_token = rdata['access_token']
+            elif 'error' in rdata:
+                print("** Auth Error:", rdata['error'], rdata.get('error_description'))
         except Exception as e:
-            print("Auth Error:", e)
+            print("** error parsing response", response.content, e)
 
     def get_auth_header(self):
         return { 'Authorization': 'Bearer ' + self._access_token }
