@@ -1,5 +1,5 @@
 import requests
-from requests.auth import HTTPBasicAuth
+from requests.exceptions import HTTPError
 import json
 import getpass
 from .QueryBuilder import *
@@ -36,15 +36,24 @@ class api:
 
     def send_get(self, requestUrl):
         self.check_auth()
-        return requests.get(requestUrl, headers=self.get_auth_header())
+        r = requests.get(requestUrl, headers=self.get_auth_header())
+        if r.status_code != 200:
+            raise HTTPError("Request failed with error %d\n%s" % (r.status_code, r.text))
+        return r
 
     def send_post(self, requestUrl, json):
         self.check_auth()
-        return requests.post(requestUrl, json=json, headers=self.get_auth_header())
+        r = requests.post(requestUrl, json=json, headers=self.get_auth_header())
+        if r.status_code != 200:
+            raise HTTPError("Request failed with error %d\n%s" % (r.status_code, r.text))
+        return r
 
     def send_delete(self, requestUrl):
         self.check_auth()
-        return requests.delete(requestUrl, headers=self.get_auth_header())
+        r = requests.delete(requestUrl, headers=self.get_auth_header())
+        if r.status_code != 200:
+            raise HTTPError("Request failed with error %d\n%s" % (r.status_code, r.text))
+        return r
 
     def login(self, username=None, password=None):
         if username is None:
