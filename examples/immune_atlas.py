@@ -1,7 +1,6 @@
 from valis import valis, Dataset, ALL
-from auth import VALIS_AUTH_USER, VALIS_AUTH_KEY
 
-valis.login(VALIS_AUTH_USER, VALIS_AUTH_KEY)
+valis.login()
 
 
 # write a query for traits
