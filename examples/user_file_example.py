@@ -31,12 +31,16 @@ print(cnrFiles)
 # this a restriction that we're trying to fix.
 variants = valis.variants.query(userfile=cnrFiles[0]['fileID'])
 
+result = variants.fetch(full=True)
 
-pathwayGenes = valis.pathways.genes('GABAergic synapse')
+print(result)
 
-variantsInIntersection = variants.intersect(pathwayGenes)
 
-print(variantsInIntersection.fetch())
+# pathwayGenes = valis.pathways.genes('GABAergic synapse')
+
+# variantsInIntersection = variants.intersect(pathwayGenes)
+
+# print(variantsInIntersection.fetch())
 
 
 

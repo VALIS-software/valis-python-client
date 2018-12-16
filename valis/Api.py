@@ -88,11 +88,11 @@ class api:
     def contigs(self):
         return json.loads(self.send_get('%s/contig_info' % self.apiUrl).content)
 
-    def getUploadedFiles(self):
+    def getUploadedFiles(self, show_regions=False):
         files = json.loads(self.send_get('%s/user_files' % self.apiUrl).content)
         final_files = []
         for file in files:
-            if not 'tmp-region' in file['fileName']:
+            if not 'tmp-region' in file['fileName'] or show_regions:
                 final_files.append(file)
         return final_files
 
@@ -130,7 +130,8 @@ class api:
           files = {'file': (name, file), 'fileType' : ('', file_type)}
         else:
           files = {'file': file, 'fileType' : ('', file_type)}
-        return self.send_post(url, files).content
+        self.check_auth()
+        return requests.post(url, files=files, headers=self.get_auth_header())
 
     def downloadQuery(self, query, output_path, sort=False):
         requestUrl = '%s/download_query' % self.apiUrl
@@ -161,7 +162,8 @@ class api:
 
         if (len(options)):
             requestUrl = requestUrl + '?' + '&'.join(options)
-
+        print(requestUrl)
+        print(query.get())
         result = json.loads(self.send_post(requestUrl, json=query.get()).content)
 
         return result['data'], result['reached_end']

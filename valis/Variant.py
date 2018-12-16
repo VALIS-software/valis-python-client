@@ -20,12 +20,15 @@ class Variant:
     """ Returns the eQTL datasets that are available"""
     return [Dataset.GTEX]
 
-  def eqtl(self, maxPValue=0.01, biosamples=None, eqtlDatasets=[Dataset.GTEX], variantTags=None, variantDatasets=[Dataset.DBSNP, Dataset.EXAC, Dataset.CLINVAR]):
+  def eqtl(self, maxPValue=0.01, geneQuery=None, biosamples=None, eqtlDatasets=[Dataset.GTEX], variantTags=None, variantDatasets=[Dataset.DBSNP, Dataset.EXAC, Dataset.CLINVAR]):
     """ Returns the eQTLs contained within datasets, filtered by optional biosamples """
     eQTLs = (self.api.edgeQuery()
       .filterSource(eqtlDatasets)
       .filterBiosample(biosamples)
       .filterMaxPValue(maxPValue))
+
+    if geneQuery:
+      eQTLs.toNode(geneQuery)
 
     variants = self.query(datasets=variantDatasets, variantTags=variantTags)
     return variants.addToEdge(eQTLs)

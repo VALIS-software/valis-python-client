@@ -20,7 +20,7 @@ genesInPathway.fetch()
 biosamples = valis.biosamples.names(datasets=[Dataset.GTEX])
 
 # fetch exac variants that regulate genes in this pathway
-eqtlsForGenesInPathway = valis.variants.eqtl(genes=genesInPathway, biosamples=biosamples[0], variantDatasets=[Dataset.EXAC])
+eqtlsForGenesInPathway = valis.variants.eqtl(geneQuery=genesInPathway, biosamples=biosamples[0], variantDatasets=[Dataset.EXAC])
 
 
 # define some intervals
